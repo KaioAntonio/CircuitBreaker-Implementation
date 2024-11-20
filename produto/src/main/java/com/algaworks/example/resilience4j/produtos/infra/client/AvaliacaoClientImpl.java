@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -30,8 +31,11 @@ public class AvaliacaoClientImpl implements AvaliacaoClient {
 		this.restTemplate = restTemplate;
 	}
 
+	//CACHE EM MEMORIA
+	private Map<Long, List<AvaliacaoModel>> CACHE = new HashMap<>();
+
 	@Override
-	@CircuitBreaker(name = "avaliacaoCB")
+	@CircuitBreaker(name = "avaliacaoCB", fallbackMethod = "buscarTodosPorProdutoNoCache")
 	public List<AvaliacaoModel> buscarTodosPorProduto(Long produtoId) {
 		final List<AvaliacaoModel> avaliacoes = executarRequisicao(produtoId);
 		return avaliacoes;
@@ -51,7 +55,15 @@ public class AvaliacaoClientImpl implements AvaliacaoClient {
 			throw e;
 		}
 
+		logger.info("Alimentando o cache");
+		CACHE.put(produtoId, Arrays.asList(avaliacoes));
+
 		return Arrays.asList(avaliacoes);
+	}
+
+	private List<AvaliacaoModel> buscarTodosPorProdutoNoCache(Long produtoID, Throwable e) {
+		logger.info("Buscando no cache");
+		return CACHE.getOrDefault(produtoID, new ArrayList<>());
 	}
 	
 }
